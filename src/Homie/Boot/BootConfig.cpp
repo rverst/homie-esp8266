@@ -422,6 +422,7 @@ void BootConfig::_onConfigRequest(AsyncWebServerRequest *request) {
   char* body = reinterpret_cast<char*>(request->_tempObject);
 
   Interface::get().getLogger() << F("Patching exiting config") << endl;
+  Interface::get().getConfig().load();
   if(Interface::get().getConfig().patch(body)) {
     Interface::get().getLogger() << F("✔ Patched") << endl;
     request->send(200, FPSTR(PROGMEM_CONFIG_APPLICATION_JSON), FPSTR(PROGMEM_CONFIG_JSON_SUCCESS));
