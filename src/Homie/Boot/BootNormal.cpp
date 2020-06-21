@@ -30,6 +30,7 @@ BootNormal::~BootNormal() {
 void BootNormal::setup() {
   Boot::setup();
 
+  BootNormal::_connections = 0;
   strlcpy(_fwChecksum, ESP.getSketchMD5().c_str(), sizeof(_fwChecksum));
   _fwChecksum[sizeof(_fwChecksum) - 1] = '\0';
 
@@ -173,30 +174,67 @@ void BootNormal::loop() {
   }
 
   if (_statsTimer.check()) {
-    char statsIntervalStr[3 + 1];
-    itoa(Interface::get().getConfig().get().deviceStatsInterval+5, statsIntervalStr, 10);
-    Interface::get().getLogger() << F("〽 Sending statistics...") << endl;
-    Interface::get().getLogger() << F("  • Interval: ") << statsIntervalStr << F("s (") << Interface::get().getConfig().get().deviceStatsInterval << F("s including 5s grace time)") << endl;
-    uint16_t intervalPacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$stats/interval")), 1, true, statsIntervalStr);
-
-    uint8_t quality = Helpers::rssiToPercentage(WiFi.RSSI());
-    char qualityStr[3 + 1];
-    itoa(quality, qualityStr, 10);
-    Interface::get().getLogger() << F("  • Wi-Fi signal quality: ") << qualityStr << F("%") << endl;
-    uint16_t signalPacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$stats/signal")), 1, true, qualityStr);
-
-    _uptime.update();
-    char uptimeStr[20 + 1];
-    itoa(_uptime.getSeconds(), uptimeStr, 10);
-    Interface::get().getLogger() << F("  • Uptime: ") << uptimeStr << F("s") << endl;
-    uint16_t uptimePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$stats/uptime")), 1, true, uptimeStr);
-
-    if (intervalPacketId != 0 && signalPacketId != 0 && uptimePacketId != 0) _statsTimer.tick();
+    BootNormal::_statsStep = BootNormal::StatsStep::PUB_INTERVAL;
+    BootNormal::_sendStats = true;
+    _statsTimer.tick();
     Interface::get().event.type = HomieEventType::SENDING_STATISTICS;
     Interface::get().eventHandler(Interface::get().event);
   }
 
+  if(BootNormal::_sendStats) {
+     if (BootNormal::_sendStatistics()) {
+         BootNormal::_sendStats = false;
+     }
+  }
+
   Interface::get().loopFunction();
+}
+
+bool BootNormal::_sendStatistics() {
+
+    if (BootNormal::_mqttWaitForPublish) {
+        if (BootNormal::_mqttStatsPacketId == Interface::get().event.packetId) {
+            BootNormal::_mqttWaitForPublish = false;
+            BootNormal::_mqttStatsPacketId = 0;
+            BootNormal::_lastRun = millis();
+            Interface::get().getLogger() << F("Packet acknowledged, going on") << endl;
+        } else if (millis() - BootNormal::_lastRun > 500) {
+            BootNormal::_mqttWaitForPublish = false;
+            Interface::get().getLogger() << F("Waited for package ACK to long, going on.") << endl;
+        } else {
+            return false;
+        }
+    }
+    switch (BootNormal::_statsStep) {
+        case BootNormal::StatsStep::PUB_INTERVAL:
+            itoa(Interface::get().getConfig().get().deviceStatsInterval+5, BootNormal::_statsIntervalStr, 10);
+            Interface::get().getLogger() << F("〽 Sending statistics...") << endl;
+            Interface::get().getLogger() << F("  • Interval: ") << BootNormal::_statsIntervalStr << F("s (") << Interface::get().getConfig().get().deviceStatsInterval << F("s including 5s grace time)") << endl;
+            uint16_t intervalPacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$stats/interval")), 1, true, BootNormal::_statsIntervalStr);
+            BootNormal::_statsStep = BootNormal::StatsStep::PUB_SIGNAL;
+        return false;
+
+        case BootNormal::StatsStep::PUB_SIGNAL:
+            uint8_t quality = Helpers::rssiToPercentage(WiFi.RSSI());
+            itoa(quality, BootNormal::_qualityStr, 10);
+            Interface::get().getLogger() << F("  • Wi-Fi signal quality: ") << BootNormal::_qualityStr << F("%") << endl;
+            uint16_t signalPacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$stats/signal")), 1, true, BootNormal::_qualityStr);
+            BootNormal::_statsStep = BootNormal::StatsStep::PUB_UPTIME;
+         return false;
+
+        case BootNormal::StatsStep::PUB_UPTIME:
+            _uptime.update();
+            itoa(_uptime.getSeconds(), BootNormal::_uptimeStr, 10);
+            Interface::get().getLogger() << F("  • Uptime: ") << BootNormal::_uptimeStr << F("s") << endl;
+            uint16_t uptimePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$stats/uptime")), 1, true, BootNormal::_uptimeStr);
+            BootNormal::_statsStep = BootNormal::StatsStep::PUB_CONNECTIONS;
+        return false;
+
+        case BootNormal::StatsStep::PUB_CONNECTIONS:
+            itoa(_cpnnections, BootNormal::_connectionsStr, 10);
+            Interface::get().getLogger() << F("  • Connections: ") << BootNormal::_connectionsStr << F("s") << endl;
+            uint16_t uptimePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$stats/connections")), 1, true, BootNormal::_connectionsStr);
+        return true;
 }
 
 void BootNormal::_prefixMqttTopic() {
@@ -395,6 +433,7 @@ void BootNormal::_mqttConnect() {
     _mqttConnectNotified = false;
     Interface::get().getLogger() << F("↕ Attempting to connect to MQTT...") << endl;
     Interface::get().getMqttClient().connect();
+    BootNormal::_connections++;
   }
 }
 
@@ -410,7 +449,6 @@ void BootNormal::_advertise() {
          BootNormal::_mqttWaitForPublish = false;
          Interface::get().getLogger() << F("Waited for package ACK to long, going on.") << endl;
      } else {
-         delay(5);
          return;
      }
   }
@@ -748,6 +786,7 @@ void BootNormal::_advertise() {
       if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.done = true;
       break;
   }
+    BootNormal::_mqttWaitForPublish = true;
 }
 
 void BootNormal::_onMqttConnected() {

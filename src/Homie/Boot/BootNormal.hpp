@@ -97,6 +97,13 @@ class BootNormal : public Boot {
     size_t currentArrayNodeIndex;
     size_t currentPropertyIndex;
   } _advertisementProgress;
+
+  enum class StatsStep {
+    PUB_INTERVAL,
+    PUB_SIGNAL,
+    PUB_UPTIME,
+    PUB_CONNECTIONS
+  } _statsStep;
   Uptime _uptime;
   Timer _statsTimer;
   ExponentialBackoffTimer _mqttReconnectTimer;
@@ -108,15 +115,23 @@ class BootNormal : public Boot {
   WiFiEventHandler _wifiGotIpHandler;
   WiFiEventHandler _wifiDisconnectedHandler;
   #endif // ESP32
+
   bool _mqttConnectNotified;
   bool _mqttDisconnectNotified;
   bool _otaOngoing;
   bool _flaggedForReboot;
   bool _mqttWaitForPublish;
+  bool _sendStats;
   uint16_t _mqttAdvertisePacketId;
+  uint16_t _mqttStatsPacketId;
   uint16_t _mqttOfflineMessageId;
   unsigned long _lastRun;
+  uint32_t _connections;
   char _fwChecksum[32 + 1];
+  char _statsIntervalStr[3 + 1];
+  char _qualityStr[3 + 1];
+  char _uptimeStr[20 + 1];
+  char _connectionsStr[20 + 1];
   bool _otaIsBase64;
   base64_decodestate _otaBase64State;
   size_t _otaBase64Pads;
@@ -150,6 +165,7 @@ class BootNormal : public Boot {
   char* _prefixMqttTopic(PGM_P topic);
   bool _publishOtaStatus(int status, const char* info = nullptr);
   void _endOtaUpdate(bool success, uint8_t update_error = UPDATE_ERROR_OK);
+  bool _sendStatistics();
 
   // _onMqttMessage Helpers
   void __splitTopic(char* topic);
