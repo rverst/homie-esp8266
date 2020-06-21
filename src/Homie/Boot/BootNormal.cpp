@@ -207,34 +207,46 @@ bool BootNormal::_sendStatistics() {
     }
     switch (BootNormal::_statsStep) {
         case BootNormal::StatsStep::PUB_INTERVAL:
-            itoa(Interface::get().getConfig().get().deviceStatsInterval+5, BootNormal::_statsIntervalStr, 10);
+            itoa(Interface::get().getConfig().get().deviceStatsInterval + 5, BootNormal::_statsIntervalStr, 10);
             Interface::get().getLogger() << F("〽 Sending statistics...") << endl;
-            Interface::get().getLogger() << F("  • Interval: ") << BootNormal::_statsIntervalStr << F("s (") << Interface::get().getConfig().get().deviceStatsInterval << F("s including 5s grace time)") << endl;
-            uint16_t intervalPacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$stats/interval")), 1, true, BootNormal::_statsIntervalStr);
+            Interface::get().getLogger() << F("  • Interval: ") << BootNormal::_statsIntervalStr << F("s (")
+                                         << Interface::get().getConfig().get().deviceStatsInterval
+                                         << F("s including 5s grace time)") << endl;
+            BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(
+                    _prefixMqttTopic(PSTR("/$stats/interval")), 1, true, BootNormal::_statsIntervalStr);
             BootNormal::_statsStep = BootNormal::StatsStep::PUB_SIGNAL;
-        return false;
+            return false;
+            break;
 
         case BootNormal::StatsStep::PUB_SIGNAL:
             uint8_t quality = Helpers::rssiToPercentage(WiFi.RSSI());
             itoa(quality, BootNormal::_qualityStr, 10);
-            Interface::get().getLogger() << F("  • Wi-Fi signal quality: ") << BootNormal::_qualityStr << F("%") << endl;
-            uint16_t signalPacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$stats/signal")), 1, true, BootNormal::_qualityStr);
+            Interface::get().getLogger() << F("  • Wi-Fi signal quality: ") << BootNormal::_qualityStr << F("%")
+                                         << endl;
+            BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$stats/signal")),
+                                                                               1, true, BootNormal::_qualityStr);
             BootNormal::_statsStep = BootNormal::StatsStep::PUB_UPTIME;
-         return false;
+            return false;
+            break;
 
         case BootNormal::StatsStep::PUB_UPTIME:
             _uptime.update();
             itoa(_uptime.getSeconds(), BootNormal::_uptimeStr, 10);
             Interface::get().getLogger() << F("  • Uptime: ") << BootNormal::_uptimeStr << F("s") << endl;
-            uint16_t uptimePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$stats/uptime")), 1, true, BootNormal::_uptimeStr);
+            BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$stats/uptime")),
+                                                                               1, true, BootNormal::_uptimeStr);
             BootNormal::_statsStep = BootNormal::StatsStep::PUB_CONNECTIONS;
-        return false;
+            return false;
+            break;
 
         case BootNormal::StatsStep::PUB_CONNECTIONS:
             itoa(_cpnnections, BootNormal::_connectionsStr, 10);
             Interface::get().getLogger() << F("  • Connections: ") << BootNormal::_connectionsStr << F("s") << endl;
-            uint16_t uptimePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$stats/connections")), 1, true, BootNormal::_connectionsStr);
-        return true;
+            BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(
+                    _prefixMqttTopic(PSTR("/$stats/connections")), 1, true, BootNormal::_connectionsStr);
+            return true;
+            break;
+    }
 }
 
 void BootNormal::_prefixMqttTopic() {
