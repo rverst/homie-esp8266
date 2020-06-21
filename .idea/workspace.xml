@@ -10,8 +10,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="323483d9-762f-41fd-9a2e-c1b29224c40e" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Homie/Boot/BootNormal.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/Homie/Boot/BootNormal.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Homie/Boot/BootNormal.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/Homie/Boot/BootNormal.hpp" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -45,7 +45,8 @@
       <updated>1592503824345</updated>
       <workItem from="1592503828322" duration="4153000" />
       <workItem from="1592605627895" duration="319000" />
-      <workItem from="1592659243442" duration="2635000" />
+      <workItem from="1592659243442" duration="3047000" />
+      <workItem from="1592760817711" duration="202000" />
     </task>
     <servers />
   </component>
