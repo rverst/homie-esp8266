@@ -401,7 +401,7 @@ void BootNormal::_mqttConnect() {
 void BootNormal::_advertise() {
 
   if (BootNormal::_mqttWaitForPublish) {
-     if (BootNormal::_mqttAdvertisePacketId == Interface::get().event.BootNormal::_mqttAdvertisePacketId) {
+     if (BootNormal::_mqttAdvertisePacketId == Interface::get().event.packetId) {
          BootNormal::_mqttWaitForPublish = false;
          BootNormal::_mqttAdvertisePacketId = 0;
          BootNormal::_lastRun = millis();
