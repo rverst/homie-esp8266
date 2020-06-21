@@ -5,3 +5,5 @@
 *.filters
 *.vcxitems
 .vscode/
+
+.idea/workspace.xml

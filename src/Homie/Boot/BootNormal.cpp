@@ -405,10 +405,12 @@ void BootNormal::_advertise() {
          BootNormal::_mqttWaitForPublish = false;
          BootNormal::_mqttAdvertisePacketId = 0;
          BootNormal::_lastRun = millis();
+         Interface::get().getLogger() << F("Packet acknowledged, going on") << endl;
      } else if (millis() - BootNormal::_lastRun > 500) {
          BootNormal::_mqttWaitForPublish = false;
          Interface::get().getLogger() << F("Waited for package ACK to long, going on.") << endl;
      } else {
+         delay(5);
          return;
      }
   }
