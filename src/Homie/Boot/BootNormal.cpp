@@ -244,7 +244,7 @@ bool BootNormal::_sendStatistics() {
             break;
 
         case BootNormal::StatsStep::PUB_CONNECTIONS:
-            Interface::get().getLogger() << F("  • Connections: ") << BootNormal::_connectionsStr << F("s") << endl;
+            Interface::get().getLogger() << F("  • Connections: ") << BootNormal::_connectionsStr << endl;
             BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(
                     _prefixMqttTopic(PSTR("/$stats/connections")), 1, true, BootNormal::_connectionsStr);
             BootNormal::_lastRun = millis();
