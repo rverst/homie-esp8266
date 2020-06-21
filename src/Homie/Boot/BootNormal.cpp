@@ -179,7 +179,7 @@ void BootNormal::loop() {
       itoa(quality, BootNormal::_qualityStr, 10);
       _uptime.update();
       itoa(_uptime.getSeconds(), BootNormal::_uptimeStr, 10);
-      itoa(_cpnnections, BootNormal::_connectionsStr, 10);
+      itoa(BootNormal::_connections, BootNormal::_connectionsStr, 10);
       BootNormal::_sendStats = true;
       BootNormal::_statsStep = BootNormal::StatsStep::PUB_INTERVAL;
       _statsTimer.tick();
