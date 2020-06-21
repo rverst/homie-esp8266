@@ -419,8 +419,22 @@ void BootConfig::_onConfigRequest(AsyncWebServerRequest *request) {
     return;
   }
 
-  DynamicJsonDocument parseJsonDoc(MAX_JSON_CONFIG_ARDUINOJSON_BUFFER_SIZE);
   char* body = reinterpret_cast<char*>(request->_tempObject);
+
+  Interface::get().getLogger() << F("Patching exiting config") << endl;
+  Interface::get().getConfig().load();
+  if(Interface::get().getConfig().patch(body)) {
+    Interface::get().getLogger() << F("✔ Patched") << endl;
+    request->send(200, FPSTR(PROGMEM_CONFIG_APPLICATION_JSON), FPSTR(PROGMEM_CONFIG_JSON_SUCCESS));
+
+    Interface::get().disable = true;
+    _flaggedForReboot = true;  // We don't reboot immediately, otherwise the response above is not sent
+    _flaggedForRebootAt = millis();
+    return;
+  }
+  Interface::get().getLogger() << F("Patching failed") << endl;
+
+  DynamicJsonDocument parseJsonDoc(MAX_JSON_CONFIG_ARDUINOJSON_BUFFER_SIZE);
   if (deserializeJson(parseJsonDoc, body) != DeserializationError::Ok || !parseJsonDoc.is<JsonObject>()) {
     __SendJSONError(request, F("✖ Invalid or too big JSON"));
     return;
