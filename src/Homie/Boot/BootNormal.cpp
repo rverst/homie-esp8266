@@ -399,31 +399,44 @@ void BootNormal::_mqttConnect() {
 }
 
 void BootNormal::_advertise() {
-  uint16_t packetId;
+
+  if (BootNormal::_mqttWaitForPublish) {
+     if (BootNormal::_mqttAdvertisePacketId == Interface::get().event.BootNormal::_mqttAdvertisePacketId) {
+         BootNormal::_mqttWaitForPublish = false;
+         BootNormal::_mqttAdvertisePacketId = 0;
+         BootNormal::_lastRun = millis();
+     } else if (millis() - BootNormal::_lastRun > 500) {
+         BootNormal::_mqttWaitForPublish = false;
+         Interface::get().getLogger() << F("Waited for package ACK to long, going on.") << endl;
+     } else {
+         return;
+     }
+  }
+
   switch (_advertisementProgress.globalStep) {
     case AdvertisementProgress::GlobalStep::PUB_INIT:
-      packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$state")), 1, true, "init");
-      if (packetId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_HOMIE;
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$state")), 1, true, "init");
+      if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_HOMIE;
       break;
     case AdvertisementProgress::GlobalStep::PUB_HOMIE:
-      packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$homie")), 1, true, HOMIE_VERSION);
-      if (packetId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_NAME;
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$homie")), 1, true, HOMIE_VERSION);
+      if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_NAME;
       break;
     case AdvertisementProgress::GlobalStep::PUB_NAME:
-      packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$name")), 1, true, Interface::get().getConfig().get().name);
-      if (packetId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_MAC;
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$name")), 1, true, Interface::get().getConfig().get().name);
+      if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_MAC;
       break;
     case AdvertisementProgress::GlobalStep::PUB_MAC:
-      packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$mac")), 1, true, WiFi.macAddress().c_str());
-      if (packetId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_LOCALIP;
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$mac")), 1, true, WiFi.macAddress().c_str());
+      if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_LOCALIP;
       break;
     case AdvertisementProgress::GlobalStep::PUB_LOCALIP:
     {
       IPAddress localIp = WiFi.localIP();
       char localIpStr[MAX_IP_STRING_LENGTH];
       Helpers::ipToString(localIp, localIpStr);
-      packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$localip")), 1, true, localIpStr);
-      if (packetId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_NODES_ATTR;
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$localip")), 1, true, localIpStr);
+      if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_NODES_ATTR;
       break;
     }
     case AdvertisementProgress::GlobalStep::PUB_NODES_ATTR:
@@ -436,55 +449,55 @@ void BootNormal::_advertise() {
         nodes.concat(F(","));
       }
       if (HomieNode::nodes.size() >= 1) nodes.remove(nodes.length() - 1);
-      packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$nodes")), 1, true, nodes.c_str());
-      if (packetId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_STATS;
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$nodes")), 1, true, nodes.c_str());
+      if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_STATS;
       break;
     }
     case AdvertisementProgress::GlobalStep::PUB_STATS:
-      packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$stats")), 1, true, "uptime");
-      if (packetId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_STATS_INTERVAL;
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$stats")), 1, true, "uptime");
+      if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_STATS_INTERVAL;
       break;
     case AdvertisementProgress::GlobalStep::PUB_STATS_INTERVAL:
       char statsIntervalStr[3 + 1];
       itoa(Interface::get().getConfig().get().deviceStatsInterval+5, statsIntervalStr, 10);
-      packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$stats/interval")), 1, true, statsIntervalStr);
-      if (packetId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_FW_NAME;
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$stats/interval")), 1, true, statsIntervalStr);
+      if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_FW_NAME;
       break;
     case AdvertisementProgress::GlobalStep::PUB_FW_NAME:
-      packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$fw/name")), 1, true, Interface::get().firmware.name);
-      if (packetId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_FW_VERSION;
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$fw/name")), 1, true, Interface::get().firmware.name);
+      if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_FW_VERSION;
       break;
     case AdvertisementProgress::GlobalStep::PUB_FW_VERSION:
-      packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$fw/version")), 1, true, Interface::get().firmware.version);
-      if (packetId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_FW_CHECKSUM;
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$fw/version")), 1, true, Interface::get().firmware.version);
+      if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_FW_CHECKSUM;
       break;
     case AdvertisementProgress::GlobalStep::PUB_FW_CHECKSUM:
-      packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$fw/checksum")), 1, true, _fwChecksum);
-      if (packetId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_IMPLEMENTATION;
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$fw/checksum")), 1, true, _fwChecksum);
+      if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_IMPLEMENTATION;
       break;
     case AdvertisementProgress::GlobalStep::PUB_IMPLEMENTATION:
       #ifdef ESP32
-      packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$implementation")), 1, true, "esp32");
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$implementation")), 1, true, "esp32");
       #elif defined(ESP8266)
-      packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$implementation")), 1, true, "esp8266");
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$implementation")), 1, true, "esp8266");
       #endif // ESP32
-      if (packetId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_IMPLEMENTATION_CONFIG;
+      if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_IMPLEMENTATION_CONFIG;
       break;
     case AdvertisementProgress::GlobalStep::PUB_IMPLEMENTATION_CONFIG:
     {
       char* safeConfigFile = Interface::get().getConfig().getSafeConfigFile();
-      packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$implementation/config")), 1, true, safeConfigFile);
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$implementation/config")), 1, true, safeConfigFile);
       delete safeConfigFile;
-      if (packetId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_IMPLEMENTATION_VERSION;
+      if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_IMPLEMENTATION_VERSION;
       break;
     }
     case AdvertisementProgress::GlobalStep::PUB_IMPLEMENTATION_VERSION:
-      packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$implementation/version")), 1, true, HOMIE_ESP8266_VERSION);
-      if (packetId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_IMPLEMENTATION_OTA_ENABLED;
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$implementation/version")), 1, true, HOMIE_ESP8266_VERSION);
+      if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_IMPLEMENTATION_OTA_ENABLED;
       break;
     case AdvertisementProgress::GlobalStep::PUB_IMPLEMENTATION_OTA_ENABLED:
-      packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$implementation/ota/enabled")), 1, true, Interface::get().getConfig().get().ota.enabled ? "true" : "false");
-      if (packetId != 0) {
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$implementation/ota/enabled")), 1, true, Interface::get().getConfig().get().ota.enabled ? "true" : "false");
+      if (BootNormal::_mqttAdvertisePacketId != 0) {
         if (HomieNode::nodes.size()) {  // skip if no nodes to publish
           _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_NODES;
           _advertisementProgress.nodeStep = AdvertisementProgress::NodeStep::PUB_NAME;
@@ -503,15 +516,15 @@ void BootNormal::_advertise() {
           strcpy_P(subtopic.get(), PSTR("/"));
           strcat(subtopic.get(), node->getId());
           strcat_P(subtopic.get(), PSTR("/$name"));
-          packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, node->getName());
-          if (packetId != 0) _advertisementProgress.nodeStep = AdvertisementProgress::NodeStep::PUB_TYPE;
+          BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, node->getName());
+          if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.nodeStep = AdvertisementProgress::NodeStep::PUB_TYPE;
           break;
         case AdvertisementProgress::NodeStep::PUB_TYPE:
           strcpy_P(subtopic.get(), PSTR("/"));
           strcat(subtopic.get(), node->getId());
           strcat_P(subtopic.get(), PSTR("/$type"));
-          packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, node->getType());
-          if (packetId != 0) _advertisementProgress.nodeStep = AdvertisementProgress::NodeStep::PUB_ARRAY;
+          BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, node->getType());
+          if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.nodeStep = AdvertisementProgress::NodeStep::PUB_ARRAY;
           break;
         case AdvertisementProgress::NodeStep::PUB_ARRAY:
         {
@@ -527,8 +540,8 @@ void BootNormal::_advertise() {
           arrayInfo.concat("-");
           arrayInfo.concat(node->getUpper());
 
-          packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, arrayInfo.c_str());
-          if (packetId != 0) {
+          BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, arrayInfo.c_str());
+          if (BootNormal::_mqttAdvertisePacketId != 0) {
             _advertisementProgress.nodeStep = AdvertisementProgress::NodeStep::PUB_ARRAY_NODES;
             _advertisementProgress.currentArrayNodeIndex = node->getLower();
           }
@@ -543,8 +556,8 @@ void BootNormal::_advertise() {
           strcpy_P(subtopic.get(), PSTR("/"));
           strcat(subtopic.get(), id.c_str());
           strcat_P(subtopic.get(), PSTR("/$name"));
-          packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, id.c_str());
-          if (packetId != 0) {
+          BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, id.c_str());
+          if (BootNormal::_mqttAdvertisePacketId != 0) {
             if (_advertisementProgress.currentArrayNodeIndex < node->getUpper()) {
               _advertisementProgress.currentArrayNodeIndex++;
             } else {
@@ -565,8 +578,8 @@ void BootNormal::_advertise() {
             properties.concat(",");
           }
           if (node->getProperties().size() >= 1) properties.remove(properties.length() - 1);
-          packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, properties.c_str());
-          if (packetId != 0) {
+          BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, properties.c_str());
+          if (BootNormal::_mqttAdvertisePacketId != 0) {
             if (node->getProperties().size()) {
               // There are properties of the node to be advertised
               _advertisementProgress.nodeStep = AdvertisementProgress::NodeStep::PUB_PROPERTIES_ATTRIBUTES;
@@ -601,8 +614,8 @@ void BootNormal::_advertise() {
                 strcat_P(subtopic.get(), PSTR("/"));
                 strcat(subtopic.get(), iProperty->getId());
                 strcat_P(subtopic.get(), PSTR("/$name"));
-                packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, iProperty->getName());
-                if (packetId != 0) _advertisementProgress.propertyStep = AdvertisementProgress::PropertyStep::PUB_SETTABLE;
+                BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, iProperty->getName());
+                if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.propertyStep = AdvertisementProgress::PropertyStep::PUB_SETTABLE;
               } else {
                 _advertisementProgress.propertyStep = AdvertisementProgress::PropertyStep::PUB_SETTABLE;
               }
@@ -614,8 +627,8 @@ void BootNormal::_advertise() {
                 strcat_P(subtopic.get(), PSTR("/"));
                 strcat(subtopic.get(), iProperty->getId());
                 strcat_P(subtopic.get(), PSTR("/$settable"));
-                packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, "true");
-                if (packetId != 0) _advertisementProgress.propertyStep = AdvertisementProgress::PropertyStep::PUB_RETAINED;
+                BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, "true");
+                if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.propertyStep = AdvertisementProgress::PropertyStep::PUB_RETAINED;
               } else {
                 _advertisementProgress.propertyStep = AdvertisementProgress::PropertyStep::PUB_RETAINED;
               }
@@ -627,8 +640,8 @@ void BootNormal::_advertise() {
                 strcat_P(subtopic.get(), PSTR("/"));
                 strcat(subtopic.get(), iProperty->getId());
                 strcat_P(subtopic.get(), PSTR("/$retained"));
-                packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, "false");
-                if (packetId != 0) _advertisementProgress.propertyStep = AdvertisementProgress::PropertyStep::PUB_DATATYPE;
+                BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, "false");
+                if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.propertyStep = AdvertisementProgress::PropertyStep::PUB_DATATYPE;
               } else {
                 _advertisementProgress.propertyStep = AdvertisementProgress::PropertyStep::PUB_DATATYPE;
               }
@@ -640,8 +653,8 @@ void BootNormal::_advertise() {
                 strcat_P(subtopic.get(), PSTR("/"));
                 strcat(subtopic.get(), iProperty->getId());
                 strcat_P(subtopic.get(), PSTR("/$datatype"));
-                packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, iProperty->getDatatype());
-                if (packetId != 0) _advertisementProgress.propertyStep = AdvertisementProgress::PropertyStep::PUB_UNIT;
+                BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, iProperty->getDatatype());
+                if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.propertyStep = AdvertisementProgress::PropertyStep::PUB_UNIT;
               } else {
                 _advertisementProgress.propertyStep = AdvertisementProgress::PropertyStep::PUB_UNIT;
               }
@@ -653,8 +666,8 @@ void BootNormal::_advertise() {
                 strcat_P(subtopic.get(), PSTR("/"));
                 strcat(subtopic.get(), iProperty->getId());
                 strcat_P(subtopic.get(), PSTR("/$unit"));
-                packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, iProperty->getUnit());
-                if (packetId != 0) _advertisementProgress.propertyStep = AdvertisementProgress::PropertyStep::PUB_FORMAT;
+                BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, iProperty->getUnit());
+                if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.propertyStep = AdvertisementProgress::PropertyStep::PUB_FORMAT;
               } else {
                 _advertisementProgress.propertyStep = AdvertisementProgress::PropertyStep::PUB_FORMAT;
               }
@@ -668,8 +681,8 @@ void BootNormal::_advertise() {
                 strcat_P(subtopic.get(), PSTR("/"));
                 strcat(subtopic.get(), iProperty->getId());
                 strcat_P(subtopic.get(), PSTR("/$format"));
-                packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, iProperty->getFormat());
-                if (packetId != 0) sent = true;
+                BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(subtopic.get()), 1, true, iProperty->getFormat());
+                if (BootNormal::_mqttAdvertisePacketId != 0) sent = true;
               } else {
                 sent = true;
               }
@@ -705,32 +718,32 @@ void BootNormal::_advertise() {
       break;
     }
     case AdvertisementProgress::GlobalStep::SUB_IMPLEMENTATION_OTA:
-      packetId = Interface::get().getMqttClient().subscribe(_prefixMqttTopic(PSTR("/$implementation/ota/firmware/+")), 1);
-      if (packetId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::SUB_IMPLEMENTATION_RESET;
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().subscribe(_prefixMqttTopic(PSTR("/$implementation/ota/firmware/+")), 1);
+      if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::SUB_IMPLEMENTATION_RESET;
       break;
     case AdvertisementProgress::GlobalStep::SUB_IMPLEMENTATION_RESET:
-      packetId = Interface::get().getMqttClient().subscribe(_prefixMqttTopic(PSTR("/$implementation/reset")), 1);
-      if (packetId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::SUB_IMPLEMENTATION_CONFIG_SET;
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().subscribe(_prefixMqttTopic(PSTR("/$implementation/reset")), 1);
+      if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::SUB_IMPLEMENTATION_CONFIG_SET;
       break;
     case AdvertisementProgress::GlobalStep::SUB_IMPLEMENTATION_CONFIG_SET:
-      packetId = Interface::get().getMqttClient().subscribe(_prefixMqttTopic(PSTR("/$implementation/config/set")), 1);
-      if (packetId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::SUB_SET;
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().subscribe(_prefixMqttTopic(PSTR("/$implementation/config/set")), 1);
+      if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::SUB_SET;
       break;
     case AdvertisementProgress::GlobalStep::SUB_SET:
-      packetId = Interface::get().getMqttClient().subscribe(_prefixMqttTopic(PSTR("/+/+/set")), 2);
-      if (packetId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::SUB_BROADCAST;
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().subscribe(_prefixMqttTopic(PSTR("/+/+/set")), 2);
+      if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::SUB_BROADCAST;
       break;
     case AdvertisementProgress::GlobalStep::SUB_BROADCAST:
     {
       String broadcast_topic(Interface::get().getConfig().get().mqtt.baseTopic);
       broadcast_topic.concat("$broadcast/+");
-      packetId = Interface::get().getMqttClient().subscribe(broadcast_topic.c_str(), 2);
-      if (packetId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_READY;
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().subscribe(broadcast_topic.c_str(), 2);
+      if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.globalStep = AdvertisementProgress::GlobalStep::PUB_READY;
       break;
     }
     case AdvertisementProgress::GlobalStep::PUB_READY:
-      packetId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$state")), 1, true, "ready");
-      if (packetId != 0) _advertisementProgress.done = true;
+      BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$state")), 1, true, "ready");
+      if (BootNormal::_mqttAdvertisePacketId != 0) _advertisementProgress.done = true;
       break;
   }
 }

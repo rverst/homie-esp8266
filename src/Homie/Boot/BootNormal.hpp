@@ -112,7 +112,10 @@ class BootNormal : public Boot {
   bool _mqttDisconnectNotified;
   bool _otaOngoing;
   bool _flaggedForReboot;
+  bool _mqttWaitForPublish;
+  uint16_t _mqttAdvertisePacketId;
   uint16_t _mqttOfflineMessageId;
+  unsigned long _lastRun;
   char _fwChecksum[32 + 1];
   bool _otaIsBase64;
   base64_decodestate _otaBase64State;
