@@ -202,7 +202,6 @@ bool BootNormal::_sendStatistics() {
         if (BootNormal::_mqttStatsPacketId == Interface::get().event.packetId) {
             BootNormal::_mqttWaitForPublish = false;
             BootNormal::_mqttStatsPacketId = 0;
-            BootNormal::_lastRun = millis();
             Interface::get().getLogger() << F("Packet acknowledged, going on") << endl;
         } else if (millis() - BootNormal::_lastRun > 500) {
             BootNormal::_mqttWaitForPublish = false;
@@ -220,6 +219,7 @@ bool BootNormal::_sendStatistics() {
             BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(
                     _prefixMqttTopic(PSTR("/$stats/interval")), 1, true, BootNormal::_statsIntervalStr);
             BootNormal::_statsStep = BootNormal::StatsStep::PUB_SIGNAL;
+            BootNormal::_lastRun = millis();
             return false;
             break;
 
@@ -229,6 +229,7 @@ bool BootNormal::_sendStatistics() {
             BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$stats/signal")),
                                                                                1, true, BootNormal::_qualityStr);
             BootNormal::_statsStep = BootNormal::StatsStep::PUB_UPTIME;
+            BootNormal::_lastRun = millis();
             return false;
             break;
 
@@ -238,6 +239,7 @@ bool BootNormal::_sendStatistics() {
             BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(_prefixMqttTopic(PSTR("/$stats/uptime")),
                                                                                1, true, BootNormal::_uptimeStr);
             BootNormal::_statsStep = BootNormal::StatsStep::PUB_CONNECTIONS;
+            BootNormal::_lastRun = millis();
             return false;
             break;
 
@@ -245,6 +247,7 @@ bool BootNormal::_sendStatistics() {
             Interface::get().getLogger() << F("  • Connections: ") << BootNormal::_connectionsStr << F("s") << endl;
             BootNormal::_mqttAdvertisePacketId = Interface::get().getMqttClient().publish(
                     _prefixMqttTopic(PSTR("/$stats/connections")), 1, true, BootNormal::_connectionsStr);
+            BootNormal::_lastRun = millis();
             return true;
             break;
     }
@@ -800,6 +803,7 @@ void BootNormal::_advertise() {
       break;
   }
     BootNormal::_mqttWaitForPublish = true;
+    BootNormal::_lastRun = millis();
 }
 
 void BootNormal::_onMqttConnected() {
